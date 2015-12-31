@@ -1,0 +1,14 @@
+Demonstrate actors through a coding example
+Actors are a good abstraction for parallelization where some state is involved. 
+Probabably there are two main broad categories of application: 
+	1) where there is a large amount of work to be spread out over a wide range of processors
+	2) where you want to simulate a large interacting network of independent agents
+
+Actors are created (and therefore supervised) in a strictly hierarchical fashion but subsequent communication is entirely open. 
+Actors are location independent so they can communicate with each other across servers.
+The Fight Club rules:
+	1) You do not pass mutable data in messages
+	2) you do NOT PASS mutable data in messages
+	
+The contract with an actor is as follows: They can be coded as if they are operating in a single-threaded enviroment. They process their messages to completion and typically respond by sending another message.
+
