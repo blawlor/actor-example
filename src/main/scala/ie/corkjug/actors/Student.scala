@@ -69,6 +69,7 @@ class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with
         reset()
         prefect ! HomeworkDone(id)
       } else {
+        log.debug(s"Student $id is going to copy $subjectsToCopy")
         copySubjects(subjectsToCopy)
       }
     case CopySubject(subjectToCopy) =>
@@ -108,13 +109,13 @@ class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with
         case `Philosophy` =>
           log.debug(s"Student $id is delegating Philosophy to a Subject Matter Expert")
           context.actorOf(Philosopher.props(id)) ! CopyPhilosophyHomework
+          context.become(waitingForCopy(subjects.tail))
         case _ =>
           log.debug(s"Student $id is copying $subjectToCopy")
           context.system.scheduler.scheduleOnce(Homework.timeToCopyInMillis milliseconds, self, new CopyComplete(subjectToCopy))
           context.become(waitingForCopy(subjects.tail))
       }
     } else {
-      log.debug(s"Student $id is ready for copy commands")
       context.become(readyToCopy(subjects))
     }
   }

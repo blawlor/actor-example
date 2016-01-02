@@ -1,5 +1,7 @@
 package ie.corkjug.actors
 
+import scala.util.Random
+
 object Homework {
 
   sealed trait Subject
@@ -29,11 +31,16 @@ object Homework {
   def subjectFor(i:Int) = subjects(i%subjects.size)
 
   object Aptitude {
+    val r = Random
     def apply() = new Aptitude(randomTimes)
-    def randomTimes():Map[Subject, Int] = {
-      Map.empty
+    def randomTimes:Map[Subject, Int] = {
+      subjects.map(s => (s -> randomTime)).toMap
     }
+    def randomTime: Int = r.nextInt(10000) + 5000
+
   }
+
+
 
   case class Aptitude(subjectTimes: Map[Subject, Int] ) {
     def timeToComplete(subject: Subject) = subjectTimes getOrElse (subject, defaultTimeToDoSubjectInMillis)
