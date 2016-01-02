@@ -31,8 +31,7 @@ object Homework {
   object Aptitude {
     def apply() = new Aptitude(randomTimes)
     def randomTimes():Map[Subject, Int] = {
-      val speeds:Map[Subject, Int] = Map.empty
-      speeds
+      Map.empty
     }
   }
 
