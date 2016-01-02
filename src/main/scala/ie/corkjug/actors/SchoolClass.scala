@@ -13,11 +13,10 @@ object SchoolClass {
 class SchoolClass(classSize: Int) extends Actor with ActorLogging {
 
   // Create a prefect and the rest of the class
-  val prefect = context.actorOf(Prefect.props(1, Aptitude(), classSize))
+  val prefect = context.actorOf(Prefect.props(1, Aptitude(), classSize).withDispatcher("student-dispatcher"))
   2 to classSize foreach {id =>
     context.actorOf(Student.props(id, Aptitude(), prefect).withDispatcher("student-dispatcher"))
   }
-  log.debug(s"Class has created students and the prefect")
 
   override def receive: Receive = {
     case ReadyForHomework => context.parent ! ReadyForHomework
