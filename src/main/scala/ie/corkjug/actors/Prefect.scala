@@ -43,6 +43,7 @@ class Prefect(id: Int, aptitude: Aptitude, classSize: Int) extends Actor with Ac
       broadcastSubjectResult(subject)
     case HomeworkDone(studentId) if (waitingOnStudents - studentId).isEmpty =>
       log.debug(s"Prefect receives completed homework from $studentId and is done")
+      reset()
       context.parent ! new HomeworkResults(new AssignmentResult(completedSubjects))
     case HomeworkDone(studentId) =>
       log.debug(s"Prefect receives completed homework from $studentId")
@@ -67,6 +68,10 @@ class Prefect(id: Int, aptitude: Aptitude, classSize: Int) extends Actor with Ac
     students.valuesIterator.foreach{ s =>
       s ! new CopySubject(subject)
     }
+  }
+
+  private def reset() = {
+    completedSubjects = Set.empty
   }
 
 }

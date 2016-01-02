@@ -46,8 +46,8 @@ class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with
       subjectsToComplete = subjectsToComplete - subject
       prefect ! SubjectComplete(id, subject)
       if (subjectsToComplete isEmpty) {
+        reset()
         prefect ! HomeworkDone(id)
-        context.become(ready)
       } else {
         copySubjects(subjectsToCopy)
       }
@@ -55,8 +55,8 @@ class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with
       log.debug(s"Student $id was given a copy of their specialization $specializationSubject before they finished.")
       subjectsToComplete = subjectsToComplete - specializationSubject
       if (subjectsToComplete isEmpty){
+        reset()
         prefect ! HomeworkDone(id)
-        context.become(ready)
       } else {
         copySubjects(subjectsToCopy)
       }
@@ -71,9 +71,8 @@ class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with
 
   private def waitingForCopy(subjectsToCopy: Set[Subject]):Receive = {
     case CopyComplete(subject) if (subjectsToComplete - subject).isEmpty=>
-      subjectsToComplete = subjectsToComplete - subject
+      reset()
       prefect ! HomeworkDone(id)
-      context.become(ready)
     case CopyComplete(subject) if subjectsToCopy.isEmpty =>
       subjectsToComplete = subjectsToComplete - subject
       context.become(readyToCopy(subjectsToCopy))
@@ -100,6 +99,12 @@ class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with
       log.debug(s"Student $id is ready for copy commands")
       context.become(readyToCopy(subjects))
     }
+  }
+
+  private def reset() = {
+    subjectsToComplete = Set.empty
+    subjectsToCopy = Set.empty
+    context.become(ready)
   }
 
 }
