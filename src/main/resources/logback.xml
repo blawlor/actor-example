@@ -16,7 +16,7 @@
     </appender>
 
     <logger name="ie.corkjug.actors" level="debug"/>
-    <root level="OFF">
+    <root level="WARN">
       <appender-ref ref="STDOUT" />
       <appender-ref ref="FILE" />
     </root>
