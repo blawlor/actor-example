@@ -4,9 +4,13 @@ import akka.actor._
 import ie.corkjug.actors.Homework.{AssignmentResult, Subject, Aptitude}
 import ie.corkjug.actors.Student._
 import ie.corkjug.actors.Teacher.{HomeworkResults, HomeworkAssignment}
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+
 
 object Prefect {
   case object ReadyForHomework
+  case object HomeworkTimeout
   def props(id: Int, aptitude: Aptitude, classSize: Int) =
     Props(classOf[Prefect], id, aptitude,  classSize)
 }
@@ -35,8 +39,13 @@ class Prefect(id: Int, aptitude: Aptitude, classSize: Int) extends Actor with Ac
       log.debug(s"Prefect has received homework to distribute")
       waitingOnStudents = students.keysIterator.toSet
       broadcastHomework(assignment.subjects)
+      val timeout = context.system.scheduler.scheduleOnce(35 seconds, self, HomeworkTimeout)
+      context.become(waitingOnCompletedHomework(timeout))
+  }
+
+  def waitingOnCompletedHomework(timeout: Cancellable): Receive = {
     case SubjectComplete(studentId, subject) if completedSubjects contains subject  =>
-      // Nothing to do
+    // Nothing to do
     case SubjectComplete(studentId, subject) =>
       log.debug(s"Student $studentId has completed $subject")
       completedSubjects = completedSubjects + subject
@@ -44,10 +53,15 @@ class Prefect(id: Int, aptitude: Aptitude, classSize: Int) extends Actor with Ac
     case HomeworkDone(studentId) if (waitingOnStudents - studentId).isEmpty =>
       log.debug(s"Prefect receives completed homework from $studentId and is done")
       reset()
+      timeout.cancel()
       context.parent ! new HomeworkResults(new AssignmentResult(completedSubjects))
     case HomeworkDone(studentId) =>
       log.debug(s"Prefect receives completed homework from $studentId")
       waitingOnStudents = waitingOnStudents - studentId
+    case HomeworkTimeout =>
+      log.warning("Prefect returns incomplete homework after timeout")
+      reset()
+      context.parent ! new HomeworkResults(new AssignmentResult(completedSubjects))
   }
 
   private def assignSpecializations() = {
@@ -72,6 +86,7 @@ class Prefect(id: Int, aptitude: Aptitude, classSize: Int) extends Actor with Ac
 
   private def reset() = {
     completedSubjects = Set.empty
+    context.become(receive)
   }
 
 }

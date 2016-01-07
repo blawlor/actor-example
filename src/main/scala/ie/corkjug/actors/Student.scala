@@ -32,8 +32,6 @@ class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with
   var specialization: Option[Subject] = None
   var subjectsToCopy: Set[Subject] = Set.empty
 
-  // Student will need to keep track of the subjects they have either completed or copied.
-
   override def receive = ready
 
   def ready:Receive = {
