@@ -1,8 +1,9 @@
 package ie.corkjug.actors
 
-import akka.actor.{ActorRef, Props, ActorLogging, Actor}
+import akka.actor.SupervisorStrategy.{Escalate, Stop, Restart, Resume}
+import akka.actor._
 import ie.corkjug.actors.Homework.{Philosophy, Subject, Aptitude}
-import ie.corkjug.actors.Philosopher.CopyPhilosophyHomework
+import ie.corkjug.actors.Philosopher.{CopyPhilosophyHomework, MoralCrisis}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -23,6 +24,16 @@ object Student {
 
 class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with ActorLogging {
   import ie.corkjug.actors.Student._
+
+  override val supervisorStrategy =
+    OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1 minute) {
+      case _: ArithmeticException      => Resume
+      case _: NullPointerException     => Restart
+      case _: IllegalArgumentException => Stop
+      case _: MoralCrisis              => sender() ! CopyPhilosophyHomework; Resume
+      case _: Exception                => Escalate
+    }
+
 
   prefect ! Ready(id)
 
@@ -95,8 +106,8 @@ class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with
       val subjectToCopy = subjects.head
       subjectToCopy match {
         case `Philosophy` =>
-          log.debug(s"Student $id is delegating Philosophy to an expert")
-          context.actorOf(Philosopher.props()) ! CopyPhilosophyHomework
+          log.debug(s"Student $id is delegating Philosophy to a Subject Matter Expert")
+          context.actorOf(Philosopher.props(id)) ! CopyPhilosophyHomework
         case _ =>
           log.debug(s"Student $id is copying $subjectToCopy")
           context.system.scheduler.scheduleOnce(Homework.timeToCopyInMillis milliseconds, self, new CopyComplete(subjectToCopy))
