@@ -2,9 +2,9 @@ package ie.corkjug.actors
 
 import akka.actor.{ActorRef, Props, ActorLogging, Actor}
 import ie.corkjug.actors.Homework.{Philosophy, Subject, Aptitude}
+import ie.corkjug.actors.Philosopher.CopyPhilosophyHomework
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.Random
 
 object Student {
   trait StudentMessage
@@ -19,10 +19,8 @@ object Student {
   case class SpecializationComplete(subject: Subject) extends StudentMessage
   def props(id: Int, aptitude: Aptitude, prefect: ActorRef) =
     Props(classOf[Student], id, aptitude, prefect)
-
-  val random: Random = Random
-  class MoralCrisis(message: String = null, cause: Throwable = null) extends Throwable(message, cause)
 }
+
 class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with ActorLogging {
   import ie.corkjug.actors.Student._
 
@@ -67,19 +65,10 @@ class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with
   }
 
   private def readyToCopy(subjectsToCopy: Set[Subject]): Receive = {
-    case CopySubject(Philosophy) =>
-      considerExistence(Philosophy)
-      copySubjects(subjectsToCopy + Philosophy)
     case CopySubject(subjectToCopy) =>
       copySubjects(subjectsToCopy + subjectToCopy)
   }
 
-  private def considerExistence(subject: Subject) = {
-    val lifeIsALottery = random.nextInt(50)
-    if (lifeIsALottery == 1) {
-      throw new MoralCrisis(s"Student $id is experiencing a moral crisis while copying $subject")
-    }
-  }
   private def waitingForCopy(subjectsToCopy: Set[Subject]):Receive = {
     case CopyComplete(subject) if (subjectsToComplete - subject).isEmpty=>
       reset()
@@ -90,9 +79,6 @@ class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with
     case CopyComplete(subject) =>
       subjectsToComplete = subjectsToComplete - subject
       copySubjects(subjectsToCopy)
-    case CopySubject(Philosophy) =>
-      considerExistence(Philosophy)
-      context.become(waitingForCopy(subjectsToCopy + Philosophy))
     case CopySubject(subjectToCopy) =>
       context.become(waitingForCopy(subjectsToCopy + subjectToCopy))
   }
@@ -106,9 +92,16 @@ class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with
 
   private def copySubjects(subjects: Set[Subject]) ={
     if (subjects.nonEmpty){
-      log.debug(s"Student $id is copying ${subjects.head}")
-      context.system.scheduler.scheduleOnce(Homework.timeToCopyInMillis milliseconds, self, new CopyComplete(subjects.head))
-      context.become(waitingForCopy(subjects.tail))
+      val subjectToCopy = subjects.head
+      subjectToCopy match {
+        case `Philosophy` =>
+          log.debug(s"Student $id is delegating Philosophy to an expert")
+          context.actorOf(Philosopher.props()) ! CopyPhilosophyHomework
+        case _ =>
+          log.debug(s"Student $id is copying $subjectToCopy")
+          context.system.scheduler.scheduleOnce(Homework.timeToCopyInMillis milliseconds, self, new CopyComplete(subjectToCopy))
+          context.become(waitingForCopy(subjects.tail))
+      }
     } else {
       log.debug(s"Student $id is ready for copy commands")
       context.become(readyToCopy(subjects))
