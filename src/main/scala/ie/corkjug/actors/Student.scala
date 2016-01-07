@@ -1,7 +1,7 @@
 package ie.corkjug.actors
 
 import akka.actor.{ActorRef, Props, ActorLogging, Actor}
-import ie.corkjug.actors.Homework.{Subject, Aptitude}
+import ie.corkjug.actors.Homework.{Philosophy, Subject, Aptitude}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
@@ -21,7 +21,7 @@ object Student {
     Props(classOf[Student], id, aptitude, prefect)
 
   val random: Random = Random
-  class ExistentialCrisis(message: String = null, cause: Throwable = null) extends Throwable(message, cause)
+  class MoralCrisis(message: String = null, cause: Throwable = null) extends Throwable(message, cause)
 }
 class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with ActorLogging {
   import ie.corkjug.actors.Student._
@@ -69,15 +69,17 @@ class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with
   }
 
   private def readyToCopy(subjectsToCopy: Set[Subject]): Receive = {
+    case CopySubject(Philosophy) =>
+      considerExistence(Philosophy)
+      copySubjects(subjectsToCopy + Philosophy)
     case CopySubject(subjectToCopy) =>
-      considerExistence()
       copySubjects(subjectsToCopy + subjectToCopy)
   }
 
-  private def considerExistence() = {
-    val lifeIsALottery = random.nextInt(500)
+  private def considerExistence(subject: Subject) = {
+    val lifeIsALottery = random.nextInt(50)
     if (lifeIsALottery == 1) {
-      throw new ExistentialCrisis(s"Student $id is wondering what does it all mean!?!")
+      throw new MoralCrisis(s"Student $id is experiencing a moral crisis while copying $subject")
     }
   }
   private def waitingForCopy(subjectsToCopy: Set[Subject]):Receive = {
@@ -90,8 +92,10 @@ class Student(id: Int, aptitude: Aptitude, prefect: ActorRef) extends Actor with
     case CopyComplete(subject) =>
       subjectsToComplete = subjectsToComplete - subject
       copySubjects(subjectsToCopy)
+    case CopySubject(Philosophy) =>
+      considerExistence(Philosophy)
+      context.become(waitingForCopy(subjectsToCopy + Philosophy))
     case CopySubject(subjectToCopy) =>
-      considerExistence()
       context.become(waitingForCopy(subjectsToCopy + subjectToCopy))
   }
 
